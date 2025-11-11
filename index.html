@@ -1,0 +1,867 @@
+<!DOCTYPE html>
+<html lang="no">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Ultimate Farm — Oppgradert</title>
+    <style>
+      :root {
+        --bg: #b9e5ff;
+        --panel: #071422;
+        --accent: #ffd166;
+        --soil: #6b4f2b;
+        --hud: #ffffffee;
+      }
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+        font-family: Inter, system-ui, Segoe UI, Arial;
+        background: linear-gradient(
+          180deg,
+          var(--bg),
+          #9ed0ff 40%,
+          #87c3ff 100%
+        );
+        overflow: hidden;
+      }
+      #game-wrap {
+        display: grid;
+        grid-template-columns: 1fr 340px;
+        height: 100vh;
+        gap: 12px;
+        padding: 12px;
+        box-sizing: border-box;
+      }
+      .stage {
+        position: relative;
+        background: linear-gradient(
+          to bottom,
+          #7fd1ff 0%,
+          #63b8ff 55%,
+          #2a8ee0 100%
+        );
+        border-radius: 12px;
+        box-shadow: 0 10px 30px rgba(10, 20, 40, 0.25);
+        overflow: hidden;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+      .hud {
+        background: linear-gradient(180deg, #001219, #011522);
+        color: var(--hud);
+        padding: 16px;
+        border-radius: 12px;
+        box-shadow: 0 10px 30px rgba(2, 6, 23, 0.6);
+        display: flex;
+        flex-direction: column;
+      }
+      .title {
+        font-size: 20px;
+        font-weight: 700;
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .title .logo {
+        width: 36px;
+        height: 36px;
+        border-radius: 8px;
+        background: linear-gradient(135deg, #ffd166, #ff6b6b);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 800;
+        color: #102a43;
+      }
+      .panel {
+        background: linear-gradient(
+          180deg,
+          rgba(255, 255, 255, 0.03),
+          rgba(255, 255, 255, 0.01)
+        );
+        padding: 10px;
+        border-radius: 8px;
+        margin-bottom: 10px;
+      }
+      .row {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+      .stat {
+        font-size: 14px;
+      }
+      .toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .btn {
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid rgba(255, 255, 255, 0.04);
+        padding: 8px;
+        border-radius: 8px;
+        cursor: pointer;
+        flex: 1;
+        min-width: 80px;
+        text-align: center;
+        user-select: none;
+      }
+      .btn.active {
+        outline: 2px solid rgba(255, 209, 102, 0.18);
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+      }
+      .seed {
+        font-weight: 700;
+      }
+      .mini {
+        font-size: 12px;
+        opacity: 0.9;
+      }
+      .shop-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        max-height: 240px;
+        overflow: auto;
+        padding-right: 6px;
+      }
+      .shop-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 8px;
+        background: rgba(255, 255, 255, 0.02);
+        border-radius: 6px;
+      }
+      .controls {
+        margin-top: auto;
+      }
+      footer {
+        font-size: 12px;
+        opacity: 0.7;
+        margin-top: 10px;
+      }
+      #overlay {
+        position: absolute;
+        left: 12px;
+        top: 12px;
+        color: white;
+        font-weight: 700;
+        text-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+        pointer-events: none;
+      }
+      /* small responsive */
+      @media (max-width: 900px) {
+        #game-wrap {
+          grid-template-columns: 1fr 260px;
+          padding: 8px;
+        }
+        .hud {
+          padding: 12px;
+        }
+      }
+      /* buy animation */
+      .buy-flash {
+        position: absolute;
+        right: 20px;
+        top: 20px;
+        padding: 8px 12px;
+        border-radius: 8px;
+        background: linear-gradient(90deg, #2ecc71, #27ae60);
+        color: white;
+        font-weight: 700;
+        transform: translateY(-8px);
+        opacity: 0;
+        transition: all 0.45s cubic-bezier(0.22, 0.9, 0.12, 1);
+        pointer-events: none;
+      }
+      .buy-flash.show {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    </style>
+  </head>
+  <body>
+    <div id="game-wrap">
+      <div class="stage" id="stage">
+        <canvas id="game"></canvas>
+        <div id="overlay"></div>
+        <div id="buyFlash" class="buy-flash">Purchased!</div>
+      </div>
+
+      <div class="hud">
+        <div class="title">
+          <div class="logo">♣</div>
+          Ultimate Farm — Oppgradert
+        </div>
+
+        <div class="panel">
+          <div class="row">
+            <div class="stat">Coins: <span id="coins">0</span></div>
+            <div style="flex: 1"></div>
+            <div class="stat">Day: <span id="day">1</span></div>
+          </div>
+          <div class="row" style="margin-top: 8px">
+            <div class="stat">Time: <span id="time">06:00</span></div>
+            <div style="flex: 1"></div>
+            <div class="stat">Weather: <span id="weather">Clear</span></div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div style="font-weight: 800; margin-bottom: 6px">
+            Tools & Seeds <span class="mini">(1:Plant 2:Water 3:Harvest)</span>
+          </div>
+          <div class="toolbar" id="tools"></div>
+        </div>
+
+        <div class="panel">
+          <div style="font-weight: 800; margin-bottom: 8px">
+            Shop & Upgrades
+          </div>
+          <div class="shop-list" id="shop"></div>
+        </div>
+
+        <div class="panel controls">
+          <div style="display: flex; gap: 8px; margin-bottom: 8px">
+            <button class="btn" id="saveBtn">Save (S)</button>
+            <button class="btn" id="loadBtn">Load</button>
+            <button class="btn" id="resetBtn">Reset</button>
+          </div>
+          <div class="mini">
+            Controls: Click tiles to interact. Number keys to change tool. Hover
+            to see growth progress.
+          </div>
+        </div>
+
+        <footer>
+          Made with HTML/CSS/JS — Procedural graphics, local save.
+        </footer>
+      </div>
+    </div>
+
+    <script>
+      /* ---------------- CONFIG ---------------- */
+      const config = {
+        cols: 12,
+        rows: 8,
+        tileSize: 96,
+        baseSoilHue: 28,
+        dayLength: 60, // seconds for full day/night
+        waterDecay: 0.01,
+      };
+
+      /* ---------------- STATE ---------------- */
+      let state = {
+        coins: 50,
+        day: 1,
+        timeOfDay: 0.25,
+        weather: "Clear",
+        grid: [],
+        selectedTool: "plant",
+        selectedSeed: "wheat",
+        inventory: {},
+        upgrades: { watering: 1, seeds: 1 },
+      };
+
+      /* ---------------- SEEDS & SHOP ---------------- */
+      const seeds = {
+        wheat: {
+          name: "Wheat",
+          cost: 5,
+          sell: 10,
+          growTime: 20,
+          stages: 4,
+          color: "#f4d35e",
+        },
+        carrot: {
+          name: "Carrot",
+          cost: 8,
+          sell: 18,
+          growTime: 30,
+          stages: 5,
+          color: "#ff8c42",
+        },
+        berry: {
+          name: "Berry",
+          cost: 12,
+          sell: 28,
+          growTime: 40,
+          stages: 6,
+          color: "#9b5de5",
+        },
+      };
+
+      const shopItems = [
+        {
+          id: "watering",
+          name: "Upgrade Watering (faster)",
+          cost: 100,
+          effect: () => state.upgrades.watering++,
+        },
+        {
+          id: "seedpack",
+          name: "Mixed Seeds x10",
+          cost: 40,
+          effect: () => {
+            state.inventory.wheat = (state.inventory.wheat || 0) + 3;
+            state.inventory.carrot = (state.inventory.carrot || 0) + 3;
+            state.inventory.berry = (state.inventory.berry || 0) + 2;
+          },
+        },
+        {
+          id: "field",
+          name: "Expand Field (+2 cols)",
+          cost: 200,
+          effect: () => {
+            config.cols += 2;
+            resizeGrid();
+            rebuildCanvas();
+          },
+        },
+      ];
+
+      /* --------------- GRID & INIT --------------- */
+      function initGrid() {
+        state.grid = [];
+        for (let y = 0; y < config.rows; y++) {
+          let row = [];
+          for (let x = 0; x < config.cols; x++) {
+            row.push({
+              x,
+              y,
+              soil: Math.random() * 0.2 + 0.8,
+              moisture: Math.random() * 0.2,
+              plant: null,
+            });
+          }
+          state.grid.push(row);
+        }
+      }
+
+      function resizeGrid() {
+        const old = JSON.parse(JSON.stringify(state.grid || []));
+        initGrid();
+        for (let y = 0; y < Math.min(old.length, state.grid.length); y++) {
+          for (
+            let x = 0;
+            x < Math.min((old[y] || []).length, state.grid[y].length);
+            x++
+          ) {
+            state.grid[y][x] = old[y][x];
+          }
+        }
+      }
+
+      /* --------------- CANVAS SETUP --------------- */
+      const canvas = document.getElementById("game");
+      const overlay = document.getElementById("overlay");
+      const buyFlash = document.getElementById("buyFlash");
+      const ctx = canvas.getContext("2d");
+
+      function rebuildCanvas() {
+        resizeCanvas();
+        draw();
+      }
+      function resizeCanvas() {
+        const rect = document.getElementById("stage").getBoundingClientRect();
+        canvas.width = Math.max(800, Math.floor(rect.width));
+        canvas.height = Math.max(600, Math.floor(rect.height));
+        config.tileSize = Math.min(
+          Math.floor(canvas.width / (config.cols + 2)),
+          110
+        );
+      }
+      window.addEventListener("resize", () => {
+        resizeCanvas();
+        draw();
+      });
+
+      /* --------------- AUDIO (WebAudio beep for buys) --------------- */
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      function playBuySound() {
+        const o = audioCtx.createOscillator();
+        const g = audioCtx.createGain();
+        o.type = "sine";
+        o.frequency.setValueAtTime(880, audioCtx.currentTime);
+        g.gain.setValueAtTime(0.001, audioCtx.currentTime);
+        g.gain.exponentialRampToValueAtTime(0.12, audioCtx.currentTime + 0.02);
+        g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.35);
+        o.connect(g);
+        g.connect(audioCtx.destination);
+        o.start();
+        o.stop(audioCtx.currentTime + 0.4);
+      }
+
+      /* --------------- GAME LOOP --------------- */
+      let last = performance.now();
+      function loop(now) {
+        const dt = Math.min(0.1, (now - last) / 1000);
+        update(dt);
+        draw();
+        last = now;
+        requestAnimationFrame(loop);
+      }
+
+      /* --------------- UPDATE --------------- */
+      function update(dt) {
+        state.timeOfDay += dt / config.dayLength;
+        if (state.timeOfDay > 1) {
+          state.timeOfDay -= 1;
+          state.day++;
+          document.getElementById("day").innerText = state.day;
+        }
+        for (const row of state.grid) {
+          for (const tile of row) {
+            tile.moisture = Math.max(
+              0,
+              tile.moisture - config.waterDecay * dt * state.upgrades.watering
+            );
+            if (tile.plant) {
+              tile.plant.age +=
+                dt * (1 + tile.soil * 0.2) * (tile.moisture > 0.15 ? 1.2 : 0.4);
+              if (tile.plant.age > seeds[tile.plant.type].growTime * 1.5) {
+                tile.plant.rot = true;
+              }
+            }
+          }
+        }
+        document.getElementById("coins").innerText = Math.floor(state.coins);
+        document.getElementById("time").innerText = timeString();
+        document.getElementById("weather").innerText = state.weather;
+      }
+
+      /* --------------- DRAW --------------- */
+      function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        drawSky();
+        drawField();
+        drawUIOverlays();
+        // overlay text is separate (DOM) so keep pointer-events none
+      }
+      function drawSky() {
+        const t = Math.sin(state.timeOfDay * Math.PI * 2) * 0.5 + 0.5;
+        const skyTop = lerpColor("#0b3d91", "#ffb56b", t);
+        const skyBottom = lerpColor("#6fd3ff", "#ffe1a8", t);
+        const g = ctx.createLinearGradient(0, 0, 0, canvas.height * 0.6);
+        g.addColorStop(0, skyTop);
+        g.addColorStop(1, skyBottom);
+        ctx.fillStyle = g;
+        ctx.fillRect(0, 0, canvas.width, canvas.height * 0.6);
+        const angle = state.timeOfDay * 2 * Math.PI - Math.PI / 2;
+        const r = Math.min(canvas.width, canvas.height) * 0.35;
+        const cx = canvas.width * 0.5 + Math.cos(angle) * r * 0.6;
+        const cy = canvas.height * 0.15 + Math.sin(angle) * r * 0.3;
+        const sunSize = 60;
+        if (state.timeOfDay > 0.2 && state.timeOfDay < 0.8) {
+          const sunG = ctx.createRadialGradient(cx, cy, 0, cx, cy, sunSize);
+          sunG.addColorStop(0, "rgba(255,220,80,0.95)");
+          sunG.addColorStop(1, "rgba(255,180,60,0.0)");
+          ctx.fillStyle = sunG;
+          ctx.beginPath();
+          ctx.arc(cx, cy, sunSize, 0, Math.PI * 2);
+          ctx.fill();
+        } else {
+          ctx.fillStyle = "rgba(255,255,230,0.9)";
+          ctx.beginPath();
+          ctx.arc(cx, cy, 36, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        drawClouds(state.timeOfDay);
+      }
+      function drawClouds(t) {
+        const cloudCount = 6;
+        for (let i = 0; i < cloudCount; i++) {
+          const x =
+            ((i * 0.37 + t * 0.03) % 1) * canvas.width * 1.4 -
+            canvas.width * 0.2;
+          const y =
+            canvas.height * 0.08 + (i % 3) * 20 + Math.sin(t * 6 + i) * 8;
+          drawCloud(x, y, 120 + (i % 3) * 30);
+        }
+      }
+      function drawCloud(x, y, w) {
+        ctx.fillStyle = "rgba(255,255,255,0.85)";
+        ctx.beginPath();
+        ctx.ellipse(x, y, w * 0.6, w * 0.32, 0, 0, Math.PI * 2);
+        ctx.ellipse(x + w * 0.3, y + 8, w * 0.35, w * 0.25, 0, 0, Math.PI * 2);
+        ctx.ellipse(x - w * 0.25, y + 4, w * 0.28, w * 0.2, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      function drawField() {
+        const pad = 40;
+        const left = pad;
+        const top = canvas.height * 0.25;
+        const fieldW = canvas.width - pad * 2;
+        const fieldH = canvas.height - top - pad;
+        const cellW = fieldW / config.cols;
+        const cellH = fieldH / config.rows;
+        ctx.fillStyle = "#8ec07c";
+        ctx.fillRect(left, top, fieldW, fieldH);
+        for (let y = 0; y < config.rows; y++) {
+          for (let x = 0; x < config.cols; x++) {
+            const tile = state.grid[y][x];
+            const tx = left + x * cellW;
+            const ty = top + y * cellH;
+            drawTile(tile, tx, ty, cellW, cellH);
+          }
+        }
+        ctx.strokeStyle = "rgba(0,0,0,0.06)";
+        ctx.lineWidth = 1;
+        for (let i = 0; i <= config.cols; i++) {
+          ctx.beginPath();
+          ctx.moveTo(left + i * cellW, top);
+          ctx.lineTo(left + i * cellW, top + fieldH);
+          ctx.stroke();
+        }
+        for (let j = 0; j <= config.rows; j++) {
+          ctx.beginPath();
+          ctx.moveTo(left, top + j * cellH);
+          ctx.lineTo(left + fieldW, top + j * cellH);
+          ctx.stroke();
+        }
+      }
+      function drawTile(tile, x, y, w, h) {
+        const soilHue = config.baseSoilHue + tile.soil * 8;
+        ctx.fillStyle = `hsl(${soilHue} 60% ${Math.floor(
+          20 + tile.soil * 12
+        )}%)`;
+        ctx.fillRect(x + 8, y + 8, w - 16, h - 16);
+        if (tile.moisture > 0) {
+          ctx.fillStyle = `rgba(80,160,255,${Math.min(0.4, tile.moisture)})`;
+          ctx.fillRect(x + 8, y + 8, w - 16, h - 16);
+        }
+        if (tile.plant) {
+          drawPlant(tile, x + 8, y + 8, w - 16, h - 16);
+        }
+      }
+      function drawPlant(tile, x, y, w, h) {
+        const plant = tile.plant;
+        const seed = seeds[plant.type];
+        const p = Math.min(1, plant.age / seed.growTime);
+        ctx.fillStyle = "rgba(40,20,10,0.2)";
+        ctx.fillRect(x + w * 0.4, y + h * 0.7, w * 0.2, h * 0.25);
+        const centerX = x + w * 0.5;
+        const baseY = y + h * 0.8;
+        ctx.lineWidth = Math.max(2, Math.floor(2 + tile.soil * 3));
+        ctx.strokeStyle = "#2a6f2b";
+        ctx.beginPath();
+        ctx.moveTo(centerX, baseY);
+        ctx.lineTo(centerX, baseY - h * 0.3 * p - Math.sin(plant.age * 2) * 3);
+        ctx.stroke();
+        const crownY = baseY - h * 0.3 * p;
+        ctx.fillStyle = seed.color;
+        ctx.beginPath();
+        ctx.ellipse(centerX, crownY, 8 + p * 12, 8 + p * 12, 0, 0, Math.PI * 2);
+        ctx.fill();
+        if (p >= 1 && !plant.rot) {
+          ctx.fillStyle = "rgba(255,255,255,0.6)";
+          ctx.beginPath();
+          ctx.arc(centerX + 6, crownY - 6, 4, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        if (plant.rot) {
+          ctx.fillStyle = "rgba(40,40,40,0.6)";
+          ctx.fillRect(x, y, w, h);
+          ctx.fillStyle = "rgba(255,255,255,0.9)";
+          ctx.fillText("ROTTEN", x + w * 0.1, y + h * 0.5);
+        }
+      }
+
+      /* --------------- UI OVERLAYS (placeholder but usable) --------------- */
+      function drawUIOverlays() {
+        // Plass for futur UI-elementer direkte på canvas (justerer overlay DOM)
+        // For nå bruker vi DOM-overlayen for meldinger, så denne er lett og trygg.
+      }
+
+      /* --------------- INTERACTION --------------- */
+      canvas.addEventListener("click", (ev) => {
+        const rect = canvas.getBoundingClientRect();
+        const mx = ev.clientX - rect.left;
+        const my = ev.clientY - rect.top;
+        const tile = tileAt(mx, my);
+        if (!tile) return;
+        const tool = state.selectedTool;
+        if (tool === "plant") {
+          plantSeed(tile, state.selectedSeed);
+        } else if (tool === "water") {
+          waterTile(tile, 0.6);
+        } else if (tool === "harvest") {
+          harvest(tile);
+        }
+      });
+      function tileAt(mx, my) {
+        const pad = 40;
+        const left = pad;
+        const top = canvas.height * 0.25;
+        const fieldW = canvas.width - pad * 2;
+        const fieldH = canvas.height - top - pad;
+        const cellW = fieldW / config.cols;
+        const cellH = fieldH / config.rows;
+        if (mx < left || mx > left + fieldW || my < top || my > top + fieldH)
+          return null;
+        const x = Math.floor((mx - left) / cellW);
+        const y = Math.floor((my - top) / cellH);
+        return state.grid[y][x];
+      }
+      function plantSeed(tile, seedId) {
+        if (tile.plant) return;
+        if (!(seedId in seeds)) return;
+        if ((state.inventory[seedId] || 0) <= 0) {
+          const cost = seeds[seedId].cost;
+          if (state.coins >= cost) {
+            state.coins -= cost;
+          } else {
+            flash("Not enough seeds or coins");
+            return;
+          }
+        } else {
+          state.inventory[seedId]--;
+        }
+        tile.plant = { type: seedId, age: 0, rot: false };
+      }
+      function waterTile(tile, amount) {
+        tile.moisture = Math.min(1, tile.moisture + amount);
+      }
+      function harvest(tile) {
+        if (!tile.plant) return;
+        const seed = seeds[tile.plant.type];
+        const p = tile.plant.age / seed.growTime;
+        if (tile.plant.rot) {
+          flash("Too late — plant rotted");
+          tile.plant = null;
+          return;
+        }
+        if (p < 1) {
+          flash("Not ready");
+          return;
+        }
+        const gained = seed.sell * (1 + Math.floor(Math.random() * 1));
+        state.coins += gained;
+        flash(`+${gained} coins`);
+        tile.plant = null;
+      }
+
+      /* --------------- UI BUILD & SHOP (robust) --------------- */
+      function buildUI() {
+        const toolsDiv = document.getElementById("tools");
+        toolsDiv.innerHTML = "";
+        const toolButtons = [
+          { id: "plant", label: "Plant" },
+          { id: "water", label: "Water" },
+          { id: "harvest", label: "Harvest" },
+        ];
+        for (const t of toolButtons) {
+          const b = document.createElement("div");
+          b.className = "btn";
+          b.innerText = t.label;
+          b.onclick = () => {
+            state.selectedTool = t.id;
+            updateToolUI();
+          };
+          b.dataset.id = t.id;
+          toolsDiv.appendChild(b);
+        }
+        for (const key of Object.keys(seeds)) {
+          const b = document.createElement("div");
+          b.className = "btn";
+          b.innerHTML = `<div class='seed'>${seeds[key].name}</div><div class='mini'>Cost:${seeds[key].cost}</div>`;
+          b.onclick = () => {
+            state.selectedSeed = key;
+            state.selectedTool = "plant";
+            updateToolUI();
+          };
+          toolsDiv.appendChild(b);
+        }
+        updateToolUI();
+
+        // Shop (use event delegation to avoid lost handlers)
+        const shopDiv = document.getElementById("shop");
+        shopDiv.innerHTML = "";
+        for (const s of shopItems) {
+          const item = document.createElement("div");
+          item.className = "shop-item";
+          item.dataset.itemId = s.id;
+          item.innerHTML = `<div><strong>${s.name}</strong><div class='mini'>Cost: ${s.cost}</div></div>`;
+          const buy = document.createElement("button");
+          buy.className = "btn buy-btn";
+          buy.style.minWidth = "80px";
+          buy.innerText = "Buy";
+          buy.dataset.itemId = s.id;
+          item.appendChild(buy);
+          shopDiv.appendChild(item);
+        }
+        // ensure single listener
+        shopDiv.removeEventListener("click", shopClickHandler); // safe remove
+        shopDiv.addEventListener("click", shopClickHandler);
+      }
+
+      function shopClickHandler(e) {
+        const btn = e.target.closest("button.buy-btn");
+        if (!btn) return;
+        const id = btn.dataset.itemId;
+        const item = shopItems.find((x) => x.id === id);
+        if (!item) return;
+        if (state.coins >= item.cost) {
+          state.coins -= item.cost;
+          item.effect();
+          flash("Purchased!");
+          showBuyFlash();
+          playBuySound();
+          buildUI();
+        } else {
+          flash("Not enough coins");
+        }
+      }
+
+      function updateToolUI() {
+        document.querySelectorAll("#tools .btn").forEach((b) => {
+          const id = b.dataset.id || b.innerText;
+          if (
+            b.dataset.id === state.selectedTool ||
+            b.innerText === seeds[state.selectedSeed]?.name
+          )
+            b.classList.add("active");
+          else b.classList.remove("active");
+        });
+      }
+
+      /* --------------- NOTIFICATIONS & FLASH --------------- */
+      let notifTimer = null;
+      function flash(text) {
+        overlay.innerText = text;
+        clearTimeout(notifTimer);
+        notifTimer = setTimeout(() => (overlay.innerText = ""), 1600);
+      }
+      function showBuyFlash() {
+        buyFlash.classList.add("show");
+        clearTimeout(buyFlash._t);
+        buyFlash._t = setTimeout(() => buyFlash.classList.remove("show"), 900);
+      }
+
+      /* --------------- PERSISTENCE --------------- */
+      function save() {
+        try {
+          const saveObj = { state, config };
+          localStorage.setItem("ultimate_farm_save", JSON.stringify(saveObj));
+          flash("Game saved");
+        } catch (e) {
+          flash("Save failed");
+          console.error(e);
+        }
+      }
+      function load() {
+        const raw = localStorage.getItem("ultimate_farm_save");
+        if (!raw) {
+          flash("No save found");
+          return;
+        }
+        try {
+          const s = JSON.parse(raw);
+          state = s.state;
+          Object.assign(config, s.config);
+          resizeGrid();
+          buildUI();
+          flash("Loaded");
+        } catch (e) {
+          flash("Load failed");
+          console.error(e);
+        }
+      }
+      function resetGame() {
+        if (confirm("Reset game?")) {
+          state = {
+            coins: 50,
+            day: 1,
+            timeOfDay: 0.25,
+            weather: "Clear",
+            grid: [],
+            selectedTool: "plant",
+            selectedSeed: "wheat",
+            inventory: {},
+            upgrades: { watering: 1, seeds: 1 },
+          };
+          initGrid();
+          buildUI();
+          flash("Reset");
+        }
+      }
+
+      /* --------------- UTILITIES --------------- */
+      function lerpColor(a, b, t) {
+        const ac = hexToRgb(a);
+        const bc = hexToRgb(b);
+        const r = Math.round(ac.r + (bc.r - ac.r) * t);
+        const g = Math.round(ac.g + (bc.g - ac.g) * t);
+        const bl = Math.round(ac.b + (bc.b - ac.b) * t);
+        return `rgb(${r},${g},${bl})`;
+      }
+      function hexToRgb(hex) {
+        hex = hex.replace("#", "");
+        if (hex.length === 3)
+          hex = hex
+            .split("")
+            .map((x) => x + x)
+            .join("");
+        return {
+          r: parseInt(hex.slice(0, 2), 16),
+          g: parseInt(hex.slice(2, 4), 16),
+          b: parseInt(hex.slice(4, 6), 16),
+        };
+      }
+      function timeString() {
+        const minutes = Math.floor((state.timeOfDay * 24 * 60) % 60);
+        const hours = Math.floor(state.timeOfDay * 24) % 24;
+        return (
+          String(hours).padStart(2, "0") +
+          ":" +
+          String(minutes).padStart(2, "0")
+        );
+      }
+
+      /* --------------- SHORTCUTS --------------- */
+      window.addEventListener("keydown", (e) => {
+        if (e.key === "1") state.selectedTool = "plant";
+        if (e.key === "2") state.selectedTool = "water";
+        if (e.key === "3") state.selectedTool = "harvest";
+        if (e.key.toLowerCase() === "s") {
+          save();
+        }
+        if (e.key.toLowerCase() === "h") {
+          const rx = Math.floor(Math.random() * config.cols);
+          const ry = Math.floor(Math.random() * config.rows);
+          const t = state.grid[ry][rx];
+          if (t.plant && t.plant.rot) {
+            t.plant.rot = false;
+            t.plant.age = Math.max(
+              0,
+              t.plant.age - seeds[t.plant.type].growTime * 0.3
+            );
+            flash("Healed!");
+          }
+        }
+        updateToolUI();
+      });
+
+      /* --------------- BOOT --------------- */
+      // safe startup
+      initGrid();
+      resizeCanvas();
+      buildUI();
+      last = performance.now();
+      requestAnimationFrame(loop);
+      document.getElementById("saveBtn").onclick = save;
+      document.getElementById("loadBtn").onclick = load;
+      document.getElementById("resetBtn").onclick = resetGame;
+
+      /* --------------- DEV: expose quick debug (optional) --------------- */
+      window._UE = { state, config };
+    </script>
+  </body>
+</html>
