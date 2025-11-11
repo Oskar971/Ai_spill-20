@@ -1,0 +1,213 @@
+/* 🌸 Ultimate Farm Game — Pastell Anime Style */
+/* Lagre som: style.css */
+
+@import url("https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&family=Varela+Round&display=swap");
+
+:root {
+  --sky-day: linear-gradient(to bottom, #b5e8ff, #e6f6ff);
+  --sky-night: linear-gradient(to bottom, #1a2342, #2b325f);
+  --earth: #c3a066;
+  --earth-wet: #b58a4e;
+  --panel-bg: rgba(255, 255, 255, 0.6);
+  --text-color: #3a2e1f;
+  --accent: #ffd6a5;
+  --accent-strong: #ffbfa3;
+  --button-hover: #ffe1c4;
+  --shadow: rgba(0, 0, 0, 0.15);
+}
+
+body {
+  margin: 0;
+  height: 100vh;
+  background: var(--sky-day);
+  font-family: "Varela Round", "Poppins", sans-serif;
+  overflow: hidden;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transition: background 1s ease;
+}
+
+/* Container for hele spillet */
+#game-container {
+  width: 95%;
+  height: 90%;
+  border-radius: 1.5rem;
+  box-shadow: 0 10px 25px var(--shadow);
+  display: flex;
+  overflow: hidden;
+  backdrop-filter: blur(10px);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+}
+
+/* Canvas (selve gården) */
+#game {
+  flex: 1;
+  background: var(--earth);
+  display: block;
+  image-rendering: pixelated;
+  border-right: 2px solid rgba(255, 255, 255, 0.2);
+}
+
+/* HUD-panel */
+#hud {
+  width: 320px;
+  background: var(--panel-bg);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 1rem 1.2rem;
+  backdrop-filter: blur(12px);
+  transition: background 0.5s ease;
+}
+
+#hud header {
+  font-weight: 600;
+  font-size: 1.3rem;
+  color: var(--text-color);
+  text-align: center;
+  margin-bottom: 0.6rem;
+}
+
+.stat-block {
+  background: rgba(255, 255, 255, 0.7);
+  border-radius: 1rem;
+  padding: 0.8rem;
+  box-shadow: 0 3px 8px var(--shadow);
+  margin-bottom: 1rem;
+}
+
+.stat-block span {
+  display: block;
+  font-size: 0.95rem;
+  color: var(--text-color);
+}
+
+button {
+  font-family: "Poppins", sans-serif;
+  font-weight: 600;
+  border: none;
+  border-radius: 1rem;
+  background: var(--accent);
+  color: var(--text-color);
+  padding: 0.6rem 1rem;
+  margin-top: 0.4rem;
+  cursor: pointer;
+  box-shadow: 0 3px 6px var(--shadow);
+  transition: all 0.2s ease;
+}
+
+button:hover {
+  background: var(--button-hover);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 10px var(--shadow);
+}
+
+button:active {
+  transform: translateY(1px);
+  box-shadow: 0 2px 5px var(--shadow);
+}
+
+/* Butikkseksjon */
+.shop {
+  background: rgba(255, 255, 255, 0.5);
+  border-radius: 1rem;
+  padding: 0.8rem;
+  box-shadow: inset 0 0 6px rgba(255, 255, 255, 0.4);
+}
+
+.shop h3 {
+  font-size: 1rem;
+  margin-bottom: 0.5rem;
+  color: var(--text-color);
+  text-align: center;
+}
+
+.shop-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.4rem 0;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.shop-item:last-child {
+  border-bottom: none;
+}
+
+/* Overlay meldinger */
+#overlay-message {
+  position: absolute;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 1.3rem;
+  color: white;
+  text-shadow: 0 0 6px rgba(0, 0, 0, 0.4);
+  opacity: 0;
+  animation: fadeMsg 2s ease forwards;
+}
+
+@keyframes fadeMsg {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -20px);
+  }
+  20% {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+  80% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, 20px);
+  }
+}
+
+/* Dag/natt bakgrunn */
+body.night {
+  background: var(--sky-night);
+}
+
+#hud.night {
+  background: rgba(40, 48, 80, 0.6);
+  color: #f0f0f0;
+}
+
+#hud.night button {
+  background: #7a89b1;
+  color: white;
+}
+
+#hud.night button:hover {
+  background: #95a3ce;
+}
+
+/* Glød-effekter */
+.glow {
+  box-shadow: 0 0 20px var(--accent-strong);
+  animation: pulseGlow 2s infinite ease-in-out;
+}
+
+@keyframes pulseGlow {
+  0%,
+  100% {
+    box-shadow: 0 0 10px var(--accent-strong);
+  }
+  50% {
+    box-shadow: 0 0 25px var(--accent-strong);
+  }
+}
+
+/* Responsiv */
+@media (max-width: 900px) {
+  #game-container {
+    flex-direction: column;
+  }
+  #hud {
+    width: 100%;
+    border-top: 2px solid rgba(255, 255, 255, 0.3);
+  }
+}
